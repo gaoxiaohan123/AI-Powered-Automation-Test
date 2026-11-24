@@ -1,0 +1,1696 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} — 自动化测试报告</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', Arial, sans-serif;
+            background: #f5f7fa;
+            color: #1e293b;
+            min-height: 100vh;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* ===== HEADER ===== */
+        .rpt-header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #1a4f8a 100%);
+            color: #fff;
+            padding: 32px 40px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        .rpt-header::before {
+            content: '';
+            position: absolute;
+            right: -100px; top: -100px;
+            width: 400px; height: 400px;
+            background: radial-gradient(circle, rgba(99,179,237,0.15) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+        .rpt-header::after {
+            content: '';
+            position: absolute;
+            left: -80px; bottom: -80px;
+            width: 300px; height: 300px;
+            background: radial-gradient(circle, rgba(34,197,94,0.08) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+        .rpt-header-inner { position: relative; z-index: 1; max-width: 1600px; margin: 0 auto; }
+        .rpt-title {
+            font-size: 32px;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .rpt-title-icon {
+            width: 48px; height: 48px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px;
+            backdrop-filter: blur(10px);
+        }
+        .rpt-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            font-size: 13px;
+            color: rgba(255,255,255,0.8);
+        }
+        .rpt-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 8px;
+            border-left: 3px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(5px);
+        }
+        .rpt-meta-icon { font-size: 16px; }
+        .rpt-meta-label { font-weight: 600; opacity: 0.9; }
+        .rpt-meta-value { font-weight: 700; opacity: 1; }
+
+        /* ===== CONTAINER ===== */
+        .rpt-container { max-width: 1600px; margin: 0 auto; padding: 32px 24px; }
+
+        /* ===== ALERT BANNER ===== */
+        .rpt-alert {
+            border-radius: 12px;
+            padding: 16px 24px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        .rpt-alert-pass {
+            background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+            border: 2px solid #22c55e;
+            color: #166534;
+        }
+        .rpt-alert-fail {
+            background: linear-gradient(135deg, #fef2f2 0%, #fef5f5 100%);
+            border: 2px solid #ef4444;
+            color: #991b1b;
+        }
+        .rpt-alert-icon { font-size: 22px; flex-shrink: 0; }
+        .rpt-alert-text { flex: 1; }
+        .rpt-alert-stats { margin-left: auto; font-size: 12px; opacity: 0.8; font-weight: 500; }
+
+        /* ===== STAT CARDS ===== */
+        .rpt-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+            border-left: 5px solid;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        }
+        .stat-card.c-total { border-left-color: #6366f1; }
+        .stat-card.c-pass  { border-left-color: #22c55e; }
+        .stat-card.c-fail  { border-left-color: #ef4444; }
+        .stat-card.c-error { border-left-color: #f97316; }
+        .stat-card.c-skip  { border-left-color: #94a3b8; }
+        .stat-card.c-rate  { border-left-color: #0ea5e9; }
+
+        .stat-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+        .stat-value {
+            font-size: 36px;
+            font-weight: 900;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+        .stat-card.c-total .stat-value { color: #6366f1; }
+        .stat-card.c-pass  .stat-value { color: #22c55e; }
+        .stat-card.c-fail  .stat-value { color: #ef4444; }
+        .stat-card.c-error .stat-value { color: #f97316; }
+        .stat-card.c-skip  .stat-value { color: #94a3b8; }
+        .stat-card.c-rate  .stat-value { color: #0ea5e9; }
+        .stat-sub { font-size: 11px; color: #cbd5e1; }
+
+        /* ===== TABS ===== */
+        .rpt-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 0;
+        }
+        .rpt-tab-btn {
+            padding: 12px 20px;
+            border: none;
+            background: transparent;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #94a3b8;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            position: relative;
+            margin-bottom: -2px;
+        }
+        .rpt-tab-btn:hover { color: #475569; }
+        .rpt-tab-btn.active {
+            color: #1e293b;
+            border-bottom-color: #0ea5e9;
+        }
+        .rpt-tab-content { display: none; }
+        .rpt-tab-content.active { display: block; }
+
+        /* ===== PROGRESS BAR ===== */
+        .rpt-progress {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px 24px;
+            box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+            margin-bottom: 24px;
+        }
+        .progress-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .progress-title { font-size: 14px; font-weight: 700; color: #1e293b; }
+        .progress-info { font-size: 12px; color: #94a3b8; }
+        .progress-track {
+            background: #f1f5f9;
+            border-radius: 999px;
+            height: 16px;
+            overflow: hidden;
+            display: flex;
+            margin-bottom: 12px;
+        }
+        .progress-seg {
+            height: 100%;
+            transition: width 1s cubic-bezier(.4,0,.2,1);
+            position: relative;
+        }
+        .progress-seg::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(90deg, rgba(255,255,255,0.3), transparent);
+        }
+        .progress-seg-pass  { background: linear-gradient(90deg, #22c55e, #4ade80); }
+        .progress-seg-fail  { background: linear-gradient(90deg, #ef4444, #f87171); }
+        .progress-seg-error { background: linear-gradient(90deg, #f97316, #fb923c); }
+        .progress-seg-skip  { background: linear-gradient(90deg, #cbd5e1, #e2e8f0); }
+        
+        .progress-legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #64748b;
+            padding: 6px 10px;
+            background: #f8fafc;
+            border-radius: 6px;
+        }
+        .legend-dot {
+            width: 10px; height: 10px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        /* ===== FILTER BAR ===== */
+        .rpt-filter {
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px 20px;
+            box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .filter-label { font-size: 12px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+        .filter-btn {
+            padding: 6px 16px;
+            border-radius: 999px;
+            border: 1.5px solid #e2e8f0;
+            background: #fff;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #64748b;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .filter-btn:hover { background: #f8fafc; border-color: #94a3b8; color: #334155; }
+        .filter-btn.active {
+            border-color: #0ea5e9;
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+        .rpt-search {
+            margin-left: auto;
+            padding: 6px 14px 6px 32px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 999px;
+            font-size: 12px;
+            outline: none;
+            width: 240px;
+            transition: all 0.2s;
+            background: #f8fafc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 10px center;
+        }
+        .rpt-search:focus { border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14,165,233,0.1); background-color: #fff; }
+
+        /* ===== RESULTS TABLE ===== */
+        .rpt-results {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+        .rpt-results-head {
+            padding: 16px 24px;
+            border-bottom: 2px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f8fafc;
+        }
+        .rpt-results-title { font-size: 15px; font-weight: 700; color: #1e293b; }
+        .rpt-results-count { font-size: 12px; color: #94a3b8; font-weight: 500; }
+
+        table { width: 100%; border-collapse: collapse; }
+        thead th {
+            background: #f8fafc;
+            padding: 12px 14px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #64748b;
+            border-bottom: 2px solid #e2e8f0;
+            white-space: nowrap;
+            user-select: none;
+        }
+        tbody tr { border-bottom: 1px solid #f1f5f9; transition: background 0.12s; }
+        tbody tr.test-row:hover { background: #f9fafb; }
+        tbody tr:last-child { border-bottom: none; }
+        tbody td { padding: 12px 14px; font-size: 13px; color: #374151; vertical-align: middle; }
+
+        /* Group header */
+        .class-row { background: linear-gradient(90deg, #f9fafb 0%, #fff 100%); }
+        .class-row td {
+            padding: 10px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #475569;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .class-row-inner { display: flex; align-items: center; gap: 10px; }
+        .class-pill {
+            display: inline-block;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #6366f1;
+            flex-shrink: 0;
+        }
+        .class-name { color: #4338ca; font-weight: 700; }
+        .class-stat { font-weight: 400; color: #94a3b8; font-size: 11px; }
+
+        /* Table cells */
+        .td-seq { color: #cbd5e1; font-size: 12px; text-align: center; width: 44px; font-weight: 500; }
+        .td-class { font-weight: 600; color: #1e293b; font-size: 12px; }
+        .td-method { font-family: 'SFMono-Regular', 'Cascadia Code', Consolas, monospace; font-size: 12px; color: #4338ca; }
+        .td-desc { color: #64748b; font-size: 12px; }
+        .td-dur { color: #94a3b8; font-size: 12px; text-align: center; white-space: nowrap; font-weight: 500; }
+        .td-status { text-align: center; }
+        .td-action { text-align: center; }
+
+        /* Status badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            white-space: nowrap;
+            border: 1px solid transparent;
+        }
+        .badge::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 6px; flex-shrink: 0; }
+        .badge-pass  { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+        .badge-pass::before  { background: #22c55e; }
+        .badge-fail  { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+        .badge-fail::before  { background: #ef4444; }
+        .badge-error { background: #fff7ed; color: #ea580c; border-color: #fed7aa; }
+        .badge-error::before { background: #f97316; }
+        .badge-skip  { background: #f8fafc; color: #64748b; border-color: #e2e8f0; }
+        .badge-skip::before  { background: #94a3b8; }
+
+        /* Detail button */
+        .btn-detail {
+            padding: 4px 12px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            font-size: 11px;
+            cursor: pointer;
+            color: #64748b;
+            font-weight: 600;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-detail:hover { background: #f1f5f9; border-color: #cbd5e1; color: #334155; }
+        .btn-detail.expanded { background: #1e293b; color: #e2e8f0; border-color: #1e293b; }
+
+        /* Detail row */
+        .detail-row td { padding: 0; }
+        .detail-content {
+            background: #0d1117;
+            color: #c9d1d9;
+            padding: 16px 24px;
+            font-family: 'SFMono-Regular', 'Cascadia Code', Consolas, monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.7;
+            max-height: 500px;
+            overflow-y: auto;
+            border-top: 4px solid #ef4444;
+        }
+        .detail-content.err-type { border-top-color: #f97316; }
+        .detail-err {
+            color: #ff7b72;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px dashed #30363d;
+        }
+        .detail-stdout {
+            color: #8b949e;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed #21262d;
+        }
+        .detail-stdout-label { color: #58a6ff; margin-bottom: 6px; font-weight: 700; display: block; }
+        .detail-line { margin: 1px 0; }
+        .detail-line-error { color: #ff7b72; font-weight: 600; }
+        .detail-line-warn  { color: #ffa657; font-weight: 600; }
+        .detail-line-pass  { color: #79c0ff; }
+        .detail-line-info  { color: #8b949e; }
+
+        /* ===== LOGS SECTION ===== */
+        .logs-section {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+        .logs-header {
+            padding: 16px 24px;
+            background: #f8fafc;
+            border-bottom: 2px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .logs-title { font-size: 15px; font-weight: 700; color: #1e293b; }
+        .logs-controls { display: flex; gap: 8px; }
+        .logs-btn {
+            padding: 6px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            background: #fff;
+            font-size: 12px;
+            cursor: pointer;
+            color: #64748b;
+            transition: all 0.2s;
+        }
+        .logs-btn:hover { background: #f8fafc; border-color: #cbd5e1; }
+        .logs-btn.active {
+            background: #e0f2fe;
+            border-color: #0ea5e9;
+            color: #0369a1;
+            font-weight: 700;
+        }
+        .logs-content {
+            background: #0d1117;
+            color: #c9d1d9;
+            padding: 16px 24px;
+            font-family: 'SFMono-Regular', 'Cascadia Code', Consolas, monospace;
+            font-size: 12px;
+            line-height: 1.7;
+            max-height: 600px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .log-error { color: #ff7b72; font-weight: 600; }
+        .log-warn  { color: #ffa657; font-weight: 600; }
+        .log-pass  { color: #79c0ff; }
+        .log-info  { color: #8b949e; }
+
+        /* ===== TIMELINE ===== */
+        .timeline-section {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+            padding: 20px 24px;
+            margin-bottom: 24px;
+        }
+        .timeline-title { font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 16px; }
+        .timeline-item {
+            display: flex;
+            gap: 16px;
+            padding: 12px 0;
+            border-left: 2px solid #e2e8f0;
+            padding-left: 16px;
+            position: relative;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -7px;
+            top: 18px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #fff;
+            border: 2px solid #e2e8f0;
+        }
+        .timeline-item.pass::before { border-color: #22c55e; background: #f0fdf4; }
+        .timeline-item.fail::before { border-color: #ef4444; background: #fef2f2; }
+        .timeline-item.error::before { border-color: #f97316; background: #fff7ed; }
+        .timeline-time {
+            font-family: 'SFMono-Regular', 'Cascadia Code', Consolas, monospace;
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: 600;
+            min-width: 170px;
+        }
+        .timeline-content { flex: 1; }
+        .timeline-method { font-size: 13px; font-weight: 600; color: #1e293b; }
+        .timeline-stat { font-size: 12px; color: #64748b; margin-top: 3px; }
+
+        /* ===== FOOTER ===== */
+        .rpt-footer {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px 24px;
+            box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .rpt-footer-stats { display: flex; gap: 20px; flex-wrap: wrap; }
+        .rpt-footer-stat { font-size: 13px; color: #64748b; }
+        .rpt-footer-stat strong { color: #1e293b; font-weight: 700; }
+        .rpt-branding { font-size: 12px; color: #94a3b8; font-weight: 500; }
+
+        /* ===== AI ANALYSIS BUTTON ===== */
+        .btn-ai-analysis {
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid #7c3aed;
+            background: linear-gradient(135deg, #ede9fe 0%, #f5f3ff 100%);
+            font-size: 11px;
+            cursor: pointer;
+            color: #6d28d9;
+            font-weight: 700;
+            transition: all 0.2s;
+            white-space: nowrap;
+            margin-left: 4px;
+        }
+        .btn-ai-analysis:hover {
+            background: linear-gradient(135deg, #ddd6fe 0%, #ede9fe 100%);
+            border-color: #6d28d9;
+            box-shadow: 0 0 8px rgba(109,40,217,0.18);
+        }
+        .btn-ai-analysis:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+        .btn-ai-analysis.loading {
+            animation: ai-pulse 1s infinite;
+        }
+        @keyframes ai-pulse { 50% { opacity: 0.55; } }
+
+        /* ===== CREATE DEFECT BUTTON ===== */
+        .btn-defect {
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid #f59e0b;
+            background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
+            font-size: 11px;
+            cursor: pointer;
+            color: #b45309;
+            font-weight: 700;
+            transition: all 0.2s;
+            white-space: nowrap;
+            margin-left: 4px;
+        }
+        .btn-defect:hover {
+            background: linear-gradient(135deg, #fde68a 0%, #fef3c7 100%);
+            border-color: #d97706;
+            box-shadow: 0 0 8px rgba(217,119,6,0.18);
+        }
+        .btn-defect:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+        .btn-defect.loading {
+            animation: ai-pulse 1s infinite;
+        }
+
+        /* ===== AI ANALYSIS MODAL ===== */
+        .ai-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.72);
+            z-index: 9000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .ai-modal-overlay.open { display: flex; }
+        .ai-modal {
+            background: #fff;
+            border-radius: 16px;
+            width: 860px;
+            max-width: 96vw;
+            max-height: 88vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.22);
+            overflow: hidden;
+        }
+        .ai-modal-header {
+            padding: 18px 24px;
+            background: linear-gradient(135deg, #4c1d95 0%, #6d28d9 100%);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        .ai-modal-title {
+            font-size: 16px;
+            font-weight: 800;
+            flex: 1;
+        }
+        .ai-modal-close {
+            background: rgba(255,255,255,0.15);
+            border: none;
+            color: #fff;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .ai-modal-close:hover { background: rgba(255,255,255,0.28); }
+        .ai-modal-meta {
+            padding: 12px 24px;
+            background: #f5f3ff;
+            border-bottom: 1px solid #ede9fe;
+            font-size: 12px;
+            color: #6d28d9;
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+        .ai-modal-meta span { font-weight: 600; }
+        .ai-modal-meta strong { color: #4c1d95; }
+        .ai-modal-body {
+            padding: 20px 24px;
+            overflow-y: auto;
+            flex: 1;
+            line-height: 1.75;
+        }
+        .ai-loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #8b5cf6;
+        }
+        .ai-loading-icon {
+            font-size: 36px;
+            animation: ai-spin 1.2s linear infinite;
+            display: block;
+            margin-bottom: 12px;
+        }
+        @keyframes ai-spin { to { transform: rotate(360deg); } }
+        .ai-loading-text { font-size: 14px; font-weight: 600; color: #6d28d9; }
+        .ai-loading-sub  { font-size: 12px; color: #a78bfa; margin-top: 6px; }
+        .ai-result-content {
+            font-size: 13.5px;
+            color: #1e293b;
+        }
+        .ai-result-content h3 {
+            font-size: 14px;
+            font-weight: 800;
+            color: #4c1d95;
+            margin: 18px 0 8px;
+            padding: 6px 12px;
+            background: #f5f3ff;
+            border-left: 4px solid #7c3aed;
+            border-radius: 0 6px 6px 0;
+        }
+        .ai-result-content h3:first-child { margin-top: 0; }
+        .ai-result-content p { margin: 6px 0; }
+        .ai-result-content ul, .ai-result-content ol {
+            margin: 6px 0 6px 20px;
+        }
+        .ai-result-content li { margin: 3px 0; }
+        .ai-result-content code {
+            background: #f1f5f9;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-family: 'SFMono-Regular', Consolas, monospace;
+            font-size: 12px;
+            color: #0f172a;
+        }
+        .ai-result-content pre {
+            background: #0d1117;
+            color: #c9d1d9;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-family: 'SFMono-Regular', Consolas, monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+        .ai-result-content pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+        .ai-result-content strong { color: #1e293b; }
+        .ai-err-banner {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 14px 18px;
+            color: #991b1b;
+            font-size: 13px;
+        }
+        .ai-modal-footer {
+            padding: 14px 24px;
+            border-top: 1px solid #f1f5f9;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            flex-shrink: 0;
+            background: #f8fafc;
+        }
+        .ai-footer-btn {
+            padding: 8px 18px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #475569;
+            transition: all 0.2s;
+        }
+        .ai-footer-btn:hover { background: #f1f5f9; border-color: #cbd5e1; }
+        .ai-footer-btn.primary {
+            background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%);
+            color: #fff;
+            border-color: transparent;
+        }
+        .ai-footer-btn.primary:hover { opacity: 0.9; }
+
+        /* ===== UTILS ===== */
+        .hidden { display: none !important; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Print */
+        @media print {
+            body { background: #fff; }
+            .rpt-filter, .btn-detail, .rpt-branding, .logs-controls { display: none; }
+            .rpt-results { box-shadow: none; }
+            .detail-content { max-height: none; }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .rpt-header { padding: 20px 16px; }
+            .rpt-container { padding: 16px; }
+            .rpt-meta { grid-template-columns: 1fr; }
+            .rpt-stats { grid-template-columns: repeat(2, 1fr); }
+            .rpt-search { width: 100%; margin-left: 0; }
+            .rpt-footer { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<div class="rpt-header">
+    <div class="rpt-header-inner">
+        <div class="rpt-title">
+            <span class="rpt-title-icon">🧪</span>
+            {{ title }}
+        </div>
+        <div class="rpt-meta">
+            <div class="rpt-meta-item">
+                <span class="rpt-meta-icon">📅</span>
+                <span class="rpt-meta-label">执行时间：</span>
+                <span class="rpt-meta-value">{{ header_info.start_time.strftime("%Y-%m-%d %H:%M:%S") }}</span>
+            </div>
+            <div class="rpt-meta-item">
+                <span class="rpt-meta-icon">⏱</span>
+                <span class="rpt-meta-label">总耗时：</span>
+                <span class="rpt-meta-value">{{ header_info.status.duration }}</span>
+            </div>
+            <div class="rpt-meta-item">
+                <span class="rpt-meta-icon">📦</span>
+                <span class="rpt-meta-label">用例数：</span>
+                <span class="rpt-meta-value">{{ all_results | length }} 个</span>
+            </div>
+            <div class="rpt-meta-item">
+                <span class="rpt-meta-icon">🔧</span>
+                <span class="rpt-meta-label">环境：</span>
+                <span class="rpt-meta-value">{{ header_info.status.env or 'Production' }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{%- set total   = header_info.status.total %}
+{%- set passed  = header_info.status.success %}
+{%- set failed  = header_info.status.failure %}
+{%- set errored = header_info.status.error %}
+{%- set skipped = header_info.status.skip %}
+{%- set fail_total = failed + errored %}
+{%- set pass_pct = ((passed  / total * 100) | round(1)) if total > 0 else 0 %}
+{%- set fail_pct = ((failed  / total * 100) | round(1)) if total > 0 else 0 %}
+{%- set err_pct  = ((errored / total * 100) | round(1)) if total > 0 else 0 %}
+{%- set skip_pct = ((skipped / total * 100) | round(1)) if total > 0 else 0 %}
+
+<div class="rpt-container">
+
+    <!-- ===== ALERT BANNER ===== -->
+    {% if fail_total > 0 %}
+    <div class="rpt-alert rpt-alert-fail">
+        <span class="rpt-alert-icon">⚠️</span>
+        <span class="rpt-alert-text">检测到 <strong>{{ fail_total }}</strong> 个失败 / 错误用例，请立即查看详情！</span>
+        <button class="btn-ai-analysis" id="ai-report-analysis-btn" onclick="openReportAiAnalysis(this)">🤖 AI总体分析</button>
+        <button class="btn-defect" id="send-report-email-btn" onclick="sendReportEmail(this)">发送邮箱</button>
+        <span class="rpt-alert-stats">通过率：<strong>{{ pass_pct }}%</strong></span>
+    </div>
+    {% else %}
+    <div class="rpt-alert rpt-alert-pass">
+        <span class="rpt-alert-icon">✅</span>
+        <span class="rpt-alert-text">所有 <strong>{{ total }}</strong> 条用例执行通过！</span>
+        <span class="rpt-alert-stats">通过率：<strong>100%</strong></span>
+    </div>
+    {% endif %}
+
+    <!-- ===== STAT CARDS ===== -->
+    <div class="rpt-stats">
+        <div class="stat-card c-total">
+            <div class="stat-label">用例总数</div>
+            <div class="stat-value">{{ total }}</div>
+            <div class="stat-sub">Total Cases</div>
+        </div>
+        <div class="stat-card c-pass">
+            <div class="stat-label">通过</div>
+            <div class="stat-value">{{ passed }}</div>
+            <div class="stat-sub">{{ pass_pct }}% Pass Rate</div>
+        </div>
+        <div class="stat-card c-fail">
+            <div class="stat-label">失败</div>
+            <div class="stat-value">{{ failed }}</div>
+            <div class="stat-sub">{{ fail_pct }}% Failure</div>
+        </div>
+        <div class="stat-card c-error">
+            <div class="stat-label">错误</div>
+            <div class="stat-value">{{ errored }}</div>
+            <div class="stat-sub">{{ err_pct }}% Error</div>
+        </div>
+        <div class="stat-card c-skip">
+            <div class="stat-label">跳过</div>
+            <div class="stat-value">{{ skipped }}</div>
+            <div class="stat-sub">{{ skip_pct }}% Skipped</div>
+        </div>
+        <div class="stat-card c-rate">
+            <div class="stat-label">通过率</div>
+            <div class="stat-value">{{ pass_pct }}%</div>
+            <div class="stat-sub">Success Rate</div>
+        </div>
+    </div>
+
+    <!-- ===== PROGRESS BAR ===== -->
+    <div class="rpt-progress">
+        <div class="progress-head">
+            <span class="progress-title">执行结果分布</span>
+            <span class="progress-info">{{ passed }} 通过 · {{ failed + errored }} 失败/错误 · {{ skipped }} 跳过</span>
+        </div>
+        <div class="progress-track">
+            <div class="progress-seg progress-seg-pass"  style="width:0%" data-w="{{ pass_pct }}%"></div>
+            <div class="progress-seg progress-seg-fail"  style="width:0%" data-w="{{ fail_pct }}%"></div>
+            <div class="progress-seg progress-seg-error" style="width:0%" data-w="{{ err_pct }}%"></div>
+            <div class="progress-seg progress-seg-skip"  style="width:0%" data-w="{{ skip_pct }}%"></div>
+        </div>
+        <div class="progress-legend">
+            <span class="legend-item"><span class="legend-dot" style="background:#22c55e"></span>通过 {{ passed }} ({{ pass_pct }}%)</span>
+            {% if failed %}<span class="legend-item"><span class="legend-dot" style="background:#ef4444"></span>失败 {{ failed }} ({{ fail_pct }}%)</span>{% endif %}
+            {% if errored %}<span class="legend-item"><span class="legend-dot" style="background:#f97316"></span>错误 {{ errored }} ({{ err_pct }}%)</span>{% endif %}
+            {% if skipped %}<span class="legend-item"><span class="legend-dot" style="background:#cbd5e1"></span>跳过 {{ skipped }} ({{ skip_pct }}%)</span>{% endif %}
+        </div>
+    </div>
+
+    <!-- ===== TABS ===== -->
+    <div class="rpt-tabs">
+        <button class="rpt-tab-btn active" onclick="switchTab(event, 'tab-results')">📋 详细结果</button>
+        <button class="rpt-tab-btn" onclick="switchTab(event, 'tab-timeline')">📊 执行时间线</button>
+        <button class="rpt-tab-btn" onclick="switchTab(event, 'tab-logs')">📝 完整日志</button>
+    </div>
+
+    <!-- ===== TAB 1: RESULTS ===== -->
+    <div id="tab-results" class="rpt-tab-content active">
+        <!-- Filter Bar -->
+        <div class="rpt-filter">
+            <span class="filter-label">筛选</span>
+            <button class="filter-btn active" onclick="doFilter('all', this)">全部 ({{ total }})</button>
+            <button class="filter-btn" onclick="doFilter('pass', this)">✅ 通过 ({{ passed }})</button>
+            {% if failed  %}<button class="filter-btn" onclick="doFilter('fail',  this)">❌ 失败 ({{ failed }})</button>{% endif %}
+            {% if errored %}<button class="filter-btn" onclick="doFilter('error', this)">⚡ 错误 ({{ errored }})</button>{% endif %}
+            {% if skipped %}<button class="filter-btn" onclick="doFilter('skip',  this)">⏭ 跳过 ({{ skipped }})</button>{% endif %}
+            <input class="rpt-search" type="text" placeholder="搜索用例名称 / 描述..." oninput="doSearch(this.value)">
+        </div>
+
+        <!-- Results Table -->
+        <div class="rpt-results">
+            <div class="rpt-results-head">
+                <span class="rpt-results-title">📋 用例执行详情</span>
+                <span class="rpt-results-count" id="visible-count">共 {{ total }} 条用例</span>
+            </div>
+
+            <table id="rpt-table">
+                <thead>
+                    <tr>
+                        <th style="width:44px;text-align:center">#</th>
+                        <th style="width:180px">测试类</th>
+                        <th>测试方法</th>
+                        <th>用例描述</th>
+                        <th style="width:80px;text-align:center">耗时</th>
+                        <th style="width:88px;text-align:center">结果</th>
+                        <th style="width:72px;text-align:center">详情</th>
+                        <th style="width:110px;text-align:center">AI自查</th>
+                    </tr>
+                </thead>
+                <tbody id="rpt-tbody">
+                    {%- set ns = namespace(seq=0) %}
+                    {%- for test_case_name, tests_results in all_results.items() %}
+                    {%- if tests_results %}
+
+                    <!-- Class group header -->
+                    <tr class="class-row">
+                        <td colspan="8">
+                            <span class="class-row-inner">
+                                <span class="class-pill"></span>
+                                <span class="class-name">{{ test_case_name }}</span>
+                                {%- if summaries and test_case_name in summaries %}
+                                <span class="class-stat">
+                                    — {{ summaries[test_case_name].total }} 条
+                                    · 通过 {{ summaries[test_case_name].success }}
+                                    {%- if summaries[test_case_name].failure %} · 失败 {{ summaries[test_case_name].failure }}{% endif %}
+                                    {%- if summaries[test_case_name].error   %} · 错误 {{ summaries[test_case_name].error }}{% endif %}
+                                    {%- if summaries[test_case_name].skip    %} · 跳过 {{ summaries[test_case_name].skip }}{% endif %}
+                                </span>
+                                {%- endif %}
+                            </span>
+                        </td>
+                    </tr>
+
+                    {%- for test_case in tests_results %}
+                    {%- set ns.seq = ns.seq + 1 %}
+                    {%- set rid = "det_" ~ ns.seq %}
+
+                    {%- if not (test_case.subtests is defined and test_case.subtests) %}
+                    {%- set has_detail = test_case.stdout or test_case.err %}
+                    {%- set outcome_cls =
+                        "pass"  if test_case.outcome == test_case.SUCCESS else
+                        ("fail"  if test_case.outcome == test_case.FAILURE else
+                        ("error" if test_case.outcome == test_case.ERROR   else "skip")) %}
+                    {%- set class_part = test_case.test_id.split(".")[-2] if "." in test_case.test_id else test_case_name %}
+                    {%- set method_part = test_case.test_id.split(".")[-1] %}
+
+                    <tr class="test-row"
+                        data-status="{{ outcome_cls }}"
+                        data-search="{{ (method_part ~ ' ' ~ (test_case.test_description or '')) | lower }}">
+                        <td class="td-seq">{{ ns.seq }}</td>
+                        <td class="td-class" title="{{ test_case.test_id }}">{{ class_part }}</td>
+                        <td class="td-method">{{ method_part }}</td>
+                        <td class="td-desc" title="{{ test_case.test_description or '' }}">{{ test_case.test_description or '—' }}</td>
+                        <td class="td-dur">{{ "%.2f s" | format(test_case.elapsed_time) }}</td>
+                        <td class="td-status">
+                            {%- if test_case.outcome == test_case.SUCCESS %}
+                            <span class="badge badge-pass">✓ PASS</span>
+                            {%- elif test_case.outcome == test_case.FAILURE %}
+                            <span class="badge badge-fail">✗ FAIL</span>
+                            {%- elif test_case.outcome == test_case.ERROR %}
+                            <span class="badge badge-error">! ERROR</span>
+                            {%- else %}
+                            <span class="badge badge-skip">→ SKIP</span>
+                            {%- endif %}
+                        </td>
+                        <td class="td-action">
+                            {%- if has_detail %}
+                            <button class="btn-detail" onclick="toggleDetail(this,'{{ rid }}')">展开</button>
+                            {%- else %}
+                            <span style="color:#cbd5e1;font-size:12px">—</span>
+                            {%- endif %}
+                        </td>
+                        <td class="td-action">
+                            {%- if outcome_cls in ('fail', 'error') %}
+                            <button class="btn-ai-analysis"
+                                onclick="openAiAnalysis(this,
+                                    '{{ test_case.test_id | e }}',
+                                    '{{ class_part | e }}',
+                                    '{{ method_part | e }}',
+                                    '{{ (test_case.test_exception_info or '') | e | replace('\n','\\n') | replace('\"','\\&quot;') }}',
+                                    '{{ (test_case.stdout or '') | e | replace('\n','\\n') | replace('\"','\\&quot;') }}')">🤖 AI自查</button>
+                            <button class="btn-defect"
+                                onclick="createJiraDefect(this,
+                                    '{{ class_part | e }}',
+                                    '{{ method_part | e }}',
+                                    '{{ (test_case.test_description or '') | e }}',
+                                    '{{ outcome_cls }}',
+                                    '{{ (test_case.test_exception_info or '') | e | replace('\n','\\n') | replace('\"','\\&quot;') }}')">🐞 创建Defect</button>
+                            {%- else %}
+                            <span style="color:#cbd5e1;font-size:12px">—</span>
+                            {%- endif %}
+                        </td>
+                    </tr>
+
+                    {%- if has_detail %}
+                    <tr class="detail-row hidden" id="{{ rid }}">
+                        <td colspan="8">
+                            <div class="detail-content {{ 'err-type' if test_case.outcome == test_case.ERROR else '' }}">
+{%- if test_case.err %}<span class="detail-err">💥 错误信息:\n{{ test_case.test_exception_info }}</span>{% endif %}
+{%- if test_case.stdout %}<div class="detail-stdout"><div class="detail-stdout-label">📝 执行日志:</div>{{ test_case.stdout }}</div>{% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {%- endif %}
+
+                    {%- else %}
+                    {%- set outcome_cls = "pass" if test_case.outcome == test_case.SUCCESS else "fail" %}
+                    <tr class="test-row" data-status="{{ outcome_cls }}"
+                        data-search="{{ test_case.test_id.split('.')[-1] | lower }}">
+                        <td class="td-seq">{{ ns.seq }}</td>
+                        <td class="td-class" colspan="2">{{ test_case.test_id.split(".")[-1] }}</td>
+                        <td class="td-desc">—</td>
+                        <td class="td-dur">—</td>
+                        <td class="td-status">
+                            <span class="badge {{ 'badge-pass' if test_case.outcome == test_case.SUCCESS else 'badge-fail' }}">
+                                {{ '✓ PASS' if test_case.outcome == test_case.SUCCESS else '✗ FAIL' }}
+                            </span>
+                        </td>
+                        <td class="td-action">—</td>
+                        <td class="td-action">—</td>
+                    </tr>
+                    {%- endif %}
+                    {%- endfor %}
+                    {%- endif %}
+                    {%- endfor %}
+                </tbody>
+            </table>
+
+            <div class="rpt-footer">
+                <div class="rpt-footer-stats">
+                    <span class="rpt-footer-stat">总计 <strong style="color:#6366f1">{{ total }}</strong></span>
+                    <span class="rpt-footer-stat">✓ 通过 <strong style="color:#22c55e">{{ passed }}</strong></span>
+                    {% if failed  %}<span class="rpt-footer-stat">✗ 失败 <strong style="color:#ef4444">{{ failed }}</strong></span>{% endif %}
+                    {% if errored %}<span class="rpt-footer-stat">! 错误 <strong style="color:#f97316">{{ errored }}</strong></span>{% endif %}
+                    {% if skipped %}<span class="rpt-footer-stat">→ 跳过 <strong style="color:#94a3b8">{{ skipped }}</strong></span>{% endif %}
+                </div>
+                <span class="rpt-branding">AutoNexus · {{ header_info.start_time.strftime("%Y-%m-%d") }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== TAB 2: TIMELINE ===== -->
+    <div id="tab-timeline" class="rpt-tab-content">
+        <div class="timeline-section">
+            <div class="timeline-title">📊 测试执行时间线</div>
+            {%- if timeline and timeline|length > 0 %}
+            {%- for item in timeline %}
+            {%- set outcome_cls =
+                "pass"  if item.outcome == 'success' else
+                ("fail"  if item.outcome == 'failure' else
+                ("error" if item.outcome == 'error'   else "skip")) %}
+            <div class="timeline-item {{ outcome_cls }}">
+                <div class="timeline-time">{{ item.time or "%.2f s" | format(item.elapsed_time or 0) }}</div>
+                <div class="timeline-content">
+                    <div class="timeline-method">
+                        {%- if item.outcome == 'success' %}
+                        ✅
+                        {%- elif item.outcome == 'failure' %}
+                        ❌
+                        {%- elif item.outcome == 'error' %}
+                        ⚠️
+                        {%- else %}
+                        ⏭
+                        {%- endif %}
+                        {{ item.method }}
+                    </div>
+                    <div class="timeline-stat">{{ item.description or '—' }} · {{ "%.2f s" | format(item.elapsed_time or 0) }}</div>
+                </div>
+            </div>
+            {%- endfor %}
+            {%- else %}
+            <div class="timeline-item">
+                <div class="timeline-time">N/A</div>
+                <div class="timeline-content">
+                    <div class="timeline-method">暂无时间线数据</div>
+                    <div class="timeline-stat">请检查测试执行日志采集配置</div>
+                </div>
+            </div>
+            {%- endif %}
+        </div>
+    </div>
+
+    <!-- ===== TAB 3: LOGS ===== -->
+    <div id="tab-logs" class="rpt-tab-content">
+        <div class="logs-section">
+            <div class="logs-header">
+                <span class="logs-title">📝 完整执行日志</span>
+                <div class="logs-controls">
+                    <button class="logs-btn active" data-log-filter="all" onclick="setLogFilter('all', this)">全部</button>
+                    <button class="logs-btn" data-log-filter="issue" onclick="setLogFilter('issue', this)">仅 ERROR/FAIL/WARNING</button>
+                    <button class="logs-btn" onclick="copyLogs()">📋 复制</button>
+                    <button class="logs-btn" onclick="downloadLogs()">⬇️ 下载</button>
+                </div>
+            </div>
+            <div class="logs-content" id="logs-content">{{ header_info.log_content | default('暂无日志', true) }}</div>
+        </div>
+    </div>
+
+</div><!-- end container -->
+
+<!-- ===== AI ANALYSIS MODAL ===== -->
+<div class="ai-modal-overlay" id="ai-modal-overlay" onclick="closeAiModal(event)">
+    <div class="ai-modal" onclick="event.stopPropagation()">
+        <div class="ai-modal-header">
+            <span style="font-size:22px">🤖</span>
+            <span class="ai-modal-title">AI自查分析 — Fail Case诊断</span>
+            <button class="ai-modal-close" onclick="closeAiModal()">✕</button>
+        </div>
+        <div class="ai-modal-meta" id="ai-modal-meta"></div>
+        <div class="ai-modal-body" id="ai-modal-body">
+            <div class="ai-loading">
+                <span class="ai-loading-icon">⚙️</span>
+                <div class="ai-loading-text">AI正在分析中...</div>
+                <div class="ai-loading-sub">正在通过 GitHub Copilot 分析失败原因，请稍候</div>
+            </div>
+        </div>
+        <div class="ai-modal-footer">
+            <button class="ai-footer-btn" id="ai-copy-btn" onclick="copyAiResult()" style="display:none">📋 复制报告</button>
+            <button class="ai-footer-btn primary" onclick="closeAiModal()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    {% set report_case_index = namespace(value=0) %}
+    var REPORT_FAILED_CASES = [
+        {%- for test_case_name, tests_results in all_results.items() %}
+        {%- for test_case in tests_results if not (test_case.subtests is defined and test_case.subtests) %}
+        {%- set report_case_index.value = report_case_index.value + 1 %}
+        {%- if test_case.outcome == test_case.FAILURE or test_case.outcome == test_case.ERROR %}
+        {{ {
+            'reportCaseNumber': report_case_index.value,
+            'testId': test_case.test_id,
+            'testClass': test_case.test_id.split('.')[-2] if '.' in test_case.test_id else test_case_name,
+            'method': test_case.test_id.split('.')[-1],
+            'status': 'error' if test_case.outcome == test_case.ERROR else 'fail',
+            'errorInfo': test_case.test_exception_info or '',
+            'stdout': test_case.stdout or ''
+        } | tojson }},
+        {%- endif %}
+        {%- endfor %}
+        {%- endfor %}
+    ];
+    var REPORT_EMAIL_SUMMARY = {
+        total: {{ total }},
+        passed: {{ passed }},
+        failed: {{ failed }},
+        errored: {{ errored }},
+        skipped: {{ skipped }}
+    };
+    var REPORT_EMAIL_TITLE = {{ title | tojson }};
+
+    // ===== Tab Switching =====
+    function switchTab(e, tabId) {
+        document.querySelectorAll('.rpt-tab-content').forEach(function(el) {
+            el.classList.remove('active');
+        });
+        document.querySelectorAll('.rpt-tab-btn').forEach(function(el) {
+            el.classList.remove('active');
+        });
+        document.getElementById(tabId).classList.add('active');
+        e.target.classList.add('active');
+    }
+
+    // ===== Progress bar animation =====
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.progress-seg[data-w]').forEach(function(el) {
+            var target = el.getAttribute('data-w');
+            setTimeout(function() { el.style.width = target; }, 80);
+        });
+        enhanceLogs();
+        enhanceDetailBlocks();
+    });
+
+    function _escapeHtml(s) {
+        return s
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function _highlightText(text) {
+        return text
+            .replace(
+                /(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d{3})?)/g,
+                '<span style="color:#7dd3fc;font-weight:700">$1</span>'
+            )
+            .replace(/\b(AssertionError|Traceback|Exception|RuntimeError|TimeoutError)\b/g, '<span style="color:#ff7b72;font-weight:700">$1</span>')
+            .replace(/\b(adb|uiautomator|ANR|crash|failed|failure|timeout)\b/gi, '<span style="color:#ffa657;font-weight:700">$1</span>');
+    }
+
+    function _classifyLine(line) {
+        if (/(\bERROR\b|\bFAIL\b|Traceback|Exception|AssertionError|RuntimeError|\[ERROR\]|\[FAIL\]|\bFAILED\b|\bCRASH\b|\bANR\b)/i.test(line)) {
+            return 'error';
+        }
+        if (/(\bWARN\b|\bWARNING\b|\[WARN\]|\[WARNING\]|\btimeout\b|\bretry\b)/i.test(line)) {
+            return 'warn';
+        }
+        if (/(\bPASS\b|\bOK\b|\bSUCCESS\b|\[PASS\]|\[END\] SUCCESS)/i.test(line)) {
+            return 'pass';
+        }
+        return 'info';
+    }
+
+    var _rawLogLines = [];
+    var _currentLogFilter = 'all';
+    var _currentRenderedLogText = '';
+
+    function _renderLogsByFilter() {
+        var logsEl = document.getElementById('logs-content');
+        if (!logsEl) return;
+
+        var visibleLines = _rawLogLines;
+        if (_currentLogFilter === 'issue') {
+            visibleLines = _rawLogLines.filter(function(line) {
+                var level = _classifyLine(line);
+                return level === 'error' || level === 'warn';
+            });
+        }
+
+        if (!visibleLines.length) {
+            logsEl.innerHTML = '<div class="log-info">当前筛选条件下无日志</div>';
+            _currentRenderedLogText = '';
+            return;
+        }
+
+        var rendered = visibleLines.map(function(line) {
+            var escaped = _highlightText(_escapeHtml(line));
+            var level = _classifyLine(line);
+            var cls = 'log-' + level;
+            return '<div class="' + cls + '">' + escaped + '</div>';
+        });
+        logsEl.innerHTML = rendered.join('');
+        _currentRenderedLogText = visibleLines.join('\n');
+    }
+
+    function setLogFilter(mode, btn) {
+        _currentLogFilter = mode;
+        document.querySelectorAll('.logs-controls [data-log-filter]').forEach(function(b) {
+            b.classList.remove('active');
+        });
+        if (btn) btn.classList.add('active');
+        _renderLogsByFilter();
+    }
+
+    function enhanceLogs() {
+        var logsEl = document.getElementById('logs-content');
+        if (!logsEl) return;
+        var raw = logsEl.textContent || '';
+        if (!raw.trim()) {
+            logsEl.innerHTML = '<div class="log-info">暂无日志</div>';
+            _rawLogLines = [];
+            _currentRenderedLogText = '';
+            return;
+        }
+
+        _rawLogLines = raw.split('\n');
+        _renderLogsByFilter();
+    }
+
+    function enhanceDetailBlocks() {
+        document.querySelectorAll('.detail-err, .detail-stdout').forEach(function(el) {
+            var raw = el.textContent || '';
+            if (!raw.trim()) return;
+
+            var rendered = raw.split('\n').map(function(line) {
+                var escaped = _highlightText(_escapeHtml(line));
+                var level = _classifyLine(line);
+                return '<div class="detail-line detail-line-' + level + '">' + escaped + '</div>';
+            }).join('');
+            el.innerHTML = rendered;
+        });
+    }
+
+    // ===== Toggle detail row =====
+    function toggleDetail(btn, rowId) {
+        var row = document.getElementById(rowId);
+        if (!row) return;
+        var isHidden = row.classList.contains('hidden');
+        row.classList.toggle('hidden', !isHidden);
+        btn.textContent = isHidden ? '收缩' : '展开';
+        btn.classList.toggle('expanded', isHidden);
+    }
+
+    // ===== Filter & Search =====
+    var _filter = 'all', _search = '';
+
+    function doFilter(status, btn) {
+        _filter = status;
+        document.querySelectorAll('.filter-btn').forEach(function(b) {
+            b.classList.remove('active');
+        });
+        btn.classList.add('active');
+        applyFilters();
+    }
+
+    function doSearch(q) {
+        _search = q.toLowerCase();
+        applyFilters();
+    }
+
+    function applyFilters() {
+        var rows = document.querySelectorAll('tr.test-row');
+        var visible = 0;
+        rows.forEach(function(row) {
+            var st = row.dataset.status;
+            var sr = row.dataset.search || '';
+            var matchStatus = _filter === 'all' || st === _filter;
+            var matchSearch = !_search || sr.includes(_search) ||
+                (row.querySelector('.td-class') && row.querySelector('.td-class').textContent.toLowerCase().includes(_search)) ||
+                (row.querySelector('.td-method') && row.querySelector('.td-method').textContent.toLowerCase().includes(_search));
+            var show = matchStatus && matchSearch;
+            row.classList.toggle('hidden', !show);
+            var nxt = row.nextElementSibling;
+            if (nxt && nxt.classList.contains('detail-row')) {
+                nxt.classList.toggle('hidden', !show);
+            }
+            if (show) visible++;
+        });
+        var countEl = document.getElementById('visible-count');
+        if (countEl) countEl.textContent = '显示 ' + visible + ' 条 / 共 {{ total }} 条';
+    }
+
+    // ===== Logs Functions =====
+    function copyLogs() {
+        var content = _currentRenderedLogText || document.getElementById('logs-content').textContent;
+        navigator.clipboard.writeText(content).then(function() {
+            alert('日志已复制到剪贴板');
+        });
+    }
+
+    function downloadLogs() {
+        var content = _currentRenderedLogText || document.getElementById('logs-content').textContent;
+        var blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        var link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = '执行日志_{{ header_info.start_time.strftime("%Y%m%d_%H%M%S") }}.txt';
+        link.click();
+    }
+
+    var REPORT_TITLE = "{{ title | e }}";
+
+    function createJiraDefect(btn, testClass, method, desc, outcome, errorInfo) {
+        function unescape(s) { return (s || '').replace(/\\n/g, '\n').replace(/\\&quot;/g, '"'); }
+        errorInfo = unescape(errorInfo);
+        var status = (outcome || '').toUpperCase();
+        var summary = '[Defect] ' + REPORT_TITLE + ' - ' + method + ' ' + status;
+        var description =
+            'Report : ' + REPORT_TITLE + '\n' +
+            'Class  : ' + testClass + '\n' +
+            'Method : ' + method + '\n' +
+            'Result : ' + status + '\n' +
+            'Case   : ' + (desc || '') + '\n' +
+            'Report URL: ' + window.location.href + '\n\n' +
+            'Error:\n' + (errorInfo || 'N/A');
+        if (!confirm('在 Jira 项目 SZMSUS 中创建一条 Defect？\n\n' + summary)) return;
+        var orig = btn.textContent;
+        btn.disabled = true;
+        btn.classList.add('loading');
+        btn.textContent = '创建中...';
+        fetch('/api/jira/create-defect', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ profileName: REPORT_TITLE, summary: summary, description: description, result: status, reportFile: '' })
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            if (d && d.code === 200 && d.key) {
+                btn.textContent = '✔ ' + d.key;
+                btn.style.borderColor = '#16a34a';
+                btn.style.color = '#16a34a';
+                window.open(d.url, '_blank');
+            } else {
+                alert('创建 Defect 失败: ' + ((d && d.msg) || 'unknown error'));
+                btn.textContent = orig;
+                btn.disabled = false;
+            }
+        }).catch(function () {
+            alert('创建 Defect 失败，无法连接服务');
+            btn.textContent = orig;
+            btn.disabled = false;
+        }).finally(function () { btn.classList.remove('loading'); });
+    }
+
+    // ===== AI Fail Analysis =====
+    var _aiResultText = '';
+    function requestReportAiAnalysis() {
+        if (!REPORT_FAILED_CASES.length) {
+            return Promise.reject(new Error('没有失败或错误用例可供分析。'));
+        }
+        return fetch(window.location.origin + '/api/ai_report_analysis', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ failedCases: REPORT_FAILED_CASES })
+        }).then(function(r) {
+            return r.text().then(function(text) {
+                var data;
+                try {
+                    data = JSON.parse(text);
+                } catch (err) {
+                    throw new Error('服务返回非 JSON 响应（HTTP ' + r.status + '），请重启 9090 服务后重试。');
+                }
+                if (!r.ok || data.err) throw new Error(data.err || '请求失败（HTTP ' + r.status + ')');
+                return data.analysis || '';
+            });
+        });
+    }
+    function openReportAiAnalysis(btn) {
+        if (!REPORT_FAILED_CASES.length) return;
+
+        var overlay = document.getElementById('ai-modal-overlay');
+        var body = document.getElementById('ai-modal-body');
+        var meta = document.getElementById('ai-modal-meta');
+        var copyBtn = document.getElementById('ai-copy-btn');
+        _aiResultText = '';
+        copyBtn.style.display = 'none';
+        meta.innerHTML = '<span>📊 报告失败/错误用例：<strong>' + REPORT_FAILED_CASES.length + ' 个</strong></span>';
+        body.innerHTML = '<div class="ai-loading"><span class="ai-loading-icon">⚙️</span><div class="ai-loading-text">AI正在汇总分析中...</div><div class="ai-loading-sub">正在识别产品Bug、自动化用例和环境问题，请稍候</div></div>';
+        overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        btn.disabled = true;
+        btn.classList.add('loading');
+        btn.textContent = '分析中...';
+
+        requestReportAiAnalysis()
+        .then(function(analysis) {
+            _aiResultText = analysis;
+            body.innerHTML = '<div class="ai-result-content">' + _renderMarkdown(_aiResultText) + '</div>';
+            copyBtn.style.display = '';
+        })
+        .catch(function(err) {
+            body.innerHTML = '<div class="ai-err-banner">❌ 请求错误：' + _esc(String(err)) + '</div>';
+        })
+        .finally(function() {
+            btn.disabled = false;
+            btn.classList.remove('loading');
+            btn.textContent = '🤖 AI总体分析';
+        });
+    }
+
+    function sendReportEmail(btn) {
+        var input = window.prompt('请输入开发邮箱，多个邮箱用逗号或分号分隔：');
+        if (input === null || !input.trim()) return;
+        var recipients = input.split(/[;,\s]+/).filter(function(address) { return address; });
+        var originalText = btn.textContent;
+        btn.disabled = true;
+        btn.classList.add('loading');
+        var noFailedCases = !REPORT_FAILED_CASES.length;
+        var analysisPromise = _aiResultText ? Promise.resolve(_aiResultText) : (noFailedCases ? Promise.resolve('') : (btn.textContent = 'AI分析中...', requestReportAiAnalysis()));
+        analysisPromise.then(function(analysis) {
+            if (!analysis && !noFailedCases) throw new Error('AI总体分析未返回结果');
+            _aiResultText = analysis;
+            btn.textContent = '发送中...';
+            return fetch(window.location.origin + '/api/report/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                recipients: recipients,
+                reportTitle: REPORT_EMAIL_TITLE,
+                reportUrl: window.location.href,
+                summary: REPORT_EMAIL_SUMMARY,
+                aiAnalysis: _aiResultText,
+                noFailedCases: noFailedCases
+            })
+            });
+        })
+        .then(function(response) { return response.text().then(function(text) { return JSON.parse(text); }); })
+        .then(function(data) {
+            if (data.err) throw new Error(data.err);
+            alert((noFailedCases ? '报告' : '报告和 AI 总体分析') + '已发送至：' + data.recipients.join(', '));
+        })
+        .catch(function(error) {
+            alert('邮件发送失败：' + String(error.message || error));
+        })
+        .finally(function() {
+            btn.disabled = false;
+            btn.classList.remove('loading');
+            btn.textContent = originalText;
+        });
+    }
+
+    function openAiAnalysis(btn, testId, testClass, method, errorInfo, stdout) {
+        // Decode escaped newlines back to real newlines
+        function unescape(s) {
+            return (s || '').replace(/\\n/g, '\n').replace(/\\&quot;/g, '"');
+        }
+        errorInfo = unescape(errorInfo);
+        stdout    = unescape(stdout);
+
+        // Show modal
+        var overlay = document.getElementById('ai-modal-overlay');
+        var body    = document.getElementById('ai-modal-body');
+        var meta    = document.getElementById('ai-modal-meta');
+        var copyBtn = document.getElementById('ai-copy-btn');
+        _aiResultText = '';
+        copyBtn.style.display = 'none';
+
+        meta.innerHTML =
+            '<span>🔖 Test ID: <strong>' + _esc(testId) + '</strong></span>' +
+            '<span>📁 Class: <strong>' + _esc(testClass) + '</strong></span>' +
+            '<span>⚙️ Method: <strong>' + _esc(method) + '</strong></span>';
+
+        body.innerHTML =
+            '<div class="ai-loading">' +
+            '<span class="ai-loading-icon">⚙️</span>' +
+            '<div class="ai-loading-text">AI正在分析中...</div>' +
+            '<div class="ai-loading-sub">正在通过 GitHub Copilot 分析失败原因，请稍候</div>' +
+            '</div>';
+
+        overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+
+        // Disable button during request
+        btn.disabled = true;
+        btn.classList.add('loading');
+        btn.textContent = '分析中...';
+
+        // Determine API base: same origin as the page
+        var apiBase = window.location.origin;
+
+        fetch(apiBase + '/api/ai_fail_analysis', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                testId:    testId,
+                testClass: testClass,
+                method:    method,
+                errorInfo: errorInfo,
+                stdout:    stdout
+            })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            btn.disabled = false;
+            btn.classList.remove('loading');
+            btn.textContent = '🤖 AI自查';
+            if (data.err) {
+                body.innerHTML = '<div class="ai-err-banner">❌ 分析失败：' + _esc(data.err) + '</div>';
+                return;
+            }
+            _aiResultText = data.analysis || '';
+            var html = _renderMarkdown(_aiResultText);
+            var modelTag = data.model ? '<small style="color:#a78bfa;font-size:11px;margin-left:8px;">(' + _esc(data.model) + ')</small>' : '';
+            var fileTag  = data.caseFile ? '<div style="margin-bottom:12px;font-size:12px;color:#64748b;">📄 源码文件: <code>' + _esc(data.caseFile) + '</code></div>' : '';
+            body.innerHTML = fileTag + '<div class="ai-result-content">' + html + '</div>';
+            copyBtn.style.display = '';
+        })
+        .catch(function(err) {
+            btn.disabled = false;
+            btn.classList.remove('loading');
+            btn.textContent = '🤖 AI自查';
+            body.innerHTML = '<div class="ai-err-banner">❌ 请求错误：' + _esc(String(err)) + '<br><small>请确保 web_console.py 服务正在运行（python web_console.py）</small></div>';
+        });
+    }
+
+    function closeAiModal(evt) {
+        if (evt && evt.target !== document.getElementById('ai-modal-overlay')) return;
+        document.getElementById('ai-modal-overlay').classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    function copyAiResult() {
+        if (!_aiResultText) return;
+        navigator.clipboard.writeText(_aiResultText).then(function() {
+            var btn = document.getElementById('ai-copy-btn');
+            btn.textContent = '✓ 已复制';
+            setTimeout(function() { btn.textContent = '📋 复制报告'; }, 2000);
+        });
+    }
+
+    function _esc(s) {
+        return String(s || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    // Minimal Markdown → HTML renderer for AI analysis output
+    function _renderMarkdown(text) {
+        var lines = (text || '').split('\n');
+        var out = [];
+        var inCode = false, codeLang = '', codeBuf = [];
+
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i];
+
+            // Fenced code block
+            if (!inCode && /^```/.test(line)) {
+                inCode = true;
+                codeLang = line.replace(/^```/, '').trim();
+                codeBuf = [];
+                continue;
+            }
+            if (inCode) {
+                if (/^```/.test(line)) {
+                    inCode = false;
+                    out.push('<pre><code>' + _esc(codeBuf.join('\n')) + '</code></pre>');
+                    codeBuf = [];
+                } else {
+                    codeBuf.push(line);
+                }
+                continue;
+            }
+
+            // Headings
+            var hm = line.match(/^(#{1,4})\s+(.*)/);
+            if (hm) {
+                out.push('<h3>' + _inlineMarkdown(hm[2]) + '</h3>');
+                continue;
+            }
+
+            // Bullet list
+            var bm = line.match(/^[\s]*[-*]\s+(.*)/);
+            if (bm) {
+                out.push('<li>' + _inlineMarkdown(bm[1]) + '</li>');
+                continue;
+            }
+
+            // Numbered list
+            var nm = line.match(/^\s*\d+\.\s+(.*)/);
+            if (nm) {
+                out.push('<li>' + _inlineMarkdown(nm[1]) + '</li>');
+                continue;
+            }
+
+            // Empty line
+            if (!line.trim()) {
+                out.push('<br>');
+                continue;
+            }
+
+            out.push('<p>' + _inlineMarkdown(line) + '</p>');
+        }
+
+        return out.join('\n');
+    }
+
+    function _inlineMarkdown(text) {
+        return _esc(text)
+            // Bold
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            // Italic
+            .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+            // Inline code
+            .replace(/`([^`]+)`/g, '<code>$1</code>');
+    }
+</script>
+</body>
+</html>

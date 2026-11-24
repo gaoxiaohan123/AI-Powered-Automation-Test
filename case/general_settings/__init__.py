@@ -1,0 +1,1 @@
+"""Automated General Settings test cases."""

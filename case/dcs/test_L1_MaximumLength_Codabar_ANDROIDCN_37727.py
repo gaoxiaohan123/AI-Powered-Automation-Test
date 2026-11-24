@@ -1,0 +1,145 @@
+# -*- coding:utf-8 -*-
+"""Test Case: ANDROIDCN-37727 - Verify Maximum length property for Codabar."""
+
+import os
+import sys
+import unittest
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+
+from common.adb_common import (
+    save_step_screenshot,
+    dcs_test_cleanup_devices,
+    dcs_test_press_home,
+    dcs_test_prepare_image_on_display_device,
+    dcs_test_trigger_honeywell_scan,
+    dcs_test_wait_device_online,
+    dcs_test_wake_and_unlock,
+)
+from common.common_method import (
+    scan_clear_input_field,
+    scan_get_input_field_text,
+    scan_open_input_field,
+    scan_verify_decode_result,
+    dcs_test_connect_u2,
+    dcs_test_goto_data_processing_settings,
+    dcs_test_goto_symbology_setting,
+    dcs_test_set_option_checked,
+)
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+SCRIPT_BASENAME = os.path.splitext(os.path.basename(__file__))[0]
+SCRIPT_IMG_DIR = os.path.join(PROJECT_ROOT, "img", SCRIPT_BASENAME)
+os.makedirs(SCRIPT_IMG_DIR, exist_ok=True)
+CODABAR_WITH_CHECK_DIGIT_LOCAL = os.path.join(PROJECT_ROOT, "files", "images", "dcs_imgs", "Codabar_with_check_digit.jpg")
+CODABAR_WITHOUT_CHECK_DIGIT_LOCAL = os.path.join(PROJECT_ROOT, "files", "images", "dcs_imgs", "Codabar_without_check_digit.jpg")
+CODABAR_WITH_CHECK_DIGIT_REMOTE = "/sdcard/Pictures/Codabar_with_check_digit.jpg"
+CODABAR_WITHOUT_CHECK_DIGIT_REMOTE = "/sdcard/Pictures/Codabar_without_check_digit.jpg"
+
+_SCANNING_LABELS = ["Scanning"]
+_INTERNAL_SCANNER_LABELS = ["Internal Scanner", "Internal scanner"]
+_DEFAULT_PROFILE_LABELS = ["Default profile", "Default Profile"]
+_DATA_PROCESSING_LABELS = ["Data Processing Settings", "Data Processing"]
+_SYMBOLOGY_LABELS = ["Symbology Settings", "Symbology"]
+_CODABAR_LABELS = ["Codabar", "CodaBar", "CODABAR"]
+_EDIT_RESOURCE_ID = "android:id/edit"
+_OK_RESOURCE_ID = "android:id/button1"
+
+
+def _load_device_serials_from_environment():
+    dev0 = (os.environ.get("AUTONEXUS_DEV0_SN") or "").strip()
+    dev1 = (os.environ.get("AUTONEXUS_DEV1_SN") or "").strip()
+    if not dev0 or not dev1:
+        raise RuntimeError("AUTONEXUS_DEV0_SN and AUTONEXUS_DEV1_SN must be provided by the web task")
+    return dev0, dev1
+
+
+DEV0_SERIAL, DEV1_SERIAL = _load_device_serials_from_environment()
+
+
+class Test_MaximumLength_Codabar(unittest.TestCase):
+    @classmethod
+    def _ensure_device_sessions(cls):
+        if hasattr(cls, "d0") and hasattr(cls, "d1"):
+            return
+        if not dcs_test_wait_device_online(DEV0_SERIAL, 25) or not dcs_test_wait_device_online(DEV1_SERIAL, 25):
+            raise RuntimeError("Configured Codabar test devices are offline")
+        cls.d0 = dcs_test_connect_u2(DEV0_SERIAL)
+        cls.d1 = dcs_test_connect_u2(DEV1_SERIAL)
+
+    @classmethod
+    def setUpClass(cls):
+        print("\n" + "=" * 70)
+        print("ANDROIDCN-37727: Verify Maximum length property for Codabar")
+        print("=" * 70)
+        cls._ensure_device_sessions()
+
+    def setUp(self):
+        self.__class__._ensure_device_sessions()
+        dcs_test_wake_and_unlock(DEV0_SERIAL, self.d0)
+        dcs_test_wake_and_unlock(DEV1_SERIAL, self.d1)
+        dcs_test_press_home(DEV0_SERIAL)
+        dcs_test_press_home(DEV1_SERIAL)
+
+    def tearDown(self):
+        dcs_test_cleanup_devices(DEV0_SERIAL, DEV1_SERIAL)
+        dcs_test_press_home(DEV0_SERIAL)
+        dcs_test_press_home(DEV1_SERIAL)
+
+    def _goto_codabar_setting(self):
+        dcs_test_goto_symbology_setting(
+            DEV0_SERIAL, self.d0, _SCANNING_LABELS, _INTERNAL_SCANNER_LABELS,
+            _DEFAULT_PROFILE_LABELS, _SYMBOLOGY_LABELS, _CODABAR_LABELS,
+        )
+
+    def _set_maximum_length(self, value):
+        self._goto_codabar_setting()
+        self.assertTrue(dcs_test_set_option_checked(self.d0, "Codabar", True), "Failed to enable Codabar")
+        self.assertTrue(dcs_test_set_option_checked(self.d0, "Send start/stop", False), "Failed to disable Send start/stop")
+        self.assertTrue(self.d0(text="Maximum length").exists, "Cannot find Maximum length")
+        self.d0(text="Maximum length").click()
+        edit = self.d0(resourceId=_EDIT_RESOURCE_ID)
+        self.assertTrue(edit.exists, "Maximum length dialog did not open")
+        edit.set_text(value)
+        self.d0(resourceId=_OK_RESOURCE_ID).click()
+        save_step_screenshot(self.d0, f"set_maximum_length_{value}", SCRIPT_IMG_DIR)
+
+    def _scan_sample(self, image_local, image_remote, state_name, expect_decode):
+        for round_number in range(1, 4):
+            dcs_test_prepare_image_on_display_device(DEV1_SERIAL, self.d1, image_local, image_remote)
+            self.assertTrue(scan_open_input_field(self.d0, DEV0_SERIAL), "Failed to focus input field")
+            scan_clear_input_field(self.d0)
+            self.assertTrue(dcs_test_trigger_honeywell_scan(DEV0_SERIAL), "Scan trigger failed")
+            detected = scan_verify_decode_result(self.d0, max_wait_seconds=5)
+            value = scan_get_input_field_text(self.d0) if detected else ""
+            print(f"  {state_name} round {round_number}: detected={detected}, value='{value}'")
+            self.assertEqual(detected, expect_decode, f"{state_name} round {round_number}: unexpected decode state, value='{value}'")
+            if expect_decode:
+                self.assertEqual(len(value), 10, f"{state_name} round {round_number}: expected a 10-character result, got '{value}'")
+            save_step_screenshot(self.d0, f"{state_name}_round{round_number}", SCRIPT_IMG_DIR)
+
+    def test_maximum_length_codabar(self):
+        """Test steps:
+        1. Open Data Processing Settings and enable Wedge.
+        2. Set Codabar Maximum length to 10.
+        3. Verify a barcode longer than Maximum length is rejected.
+        4. Verify a barcode equal to Maximum length is decoded.
+        """
+        print("\n[Step 1] Open Data Processing Settings and enable Wedge")
+        dcs_test_goto_data_processing_settings(DEV0_SERIAL, self.d0, _SCANNING_LABELS, _INTERNAL_SCANNER_LABELS, _DEFAULT_PROFILE_LABELS, _DATA_PROCESSING_LABELS)
+        self.assertTrue(dcs_test_set_option_checked(self.d0, "Wedge", True), "Failed to enable Wedge")
+
+        print("[Step 2] Set Codabar Maximum length to 10")
+        self._set_maximum_length("10")
+
+        print("[Step 3] Verify a barcode longer than Maximum length is rejected")
+        self._scan_sample(CODABAR_WITH_CHECK_DIGIT_LOCAL, CODABAR_WITH_CHECK_DIGIT_REMOTE, "above_maximum_length", False)
+
+        print("[Step 4] Verify a barcode equal to Maximum length is decoded")
+        self._scan_sample(CODABAR_WITHOUT_CHECK_DIGIT_LOCAL, CODABAR_WITHOUT_CHECK_DIGIT_REMOTE, "at_maximum_length", True)
+
+
+if __name__ == "__main__":
+    suite = unittest.defaultTestLoader.loadTestsFromTestCase(Test_MaximumLength_Codabar)
+    result = unittest.TextTestRunner(verbosity=2).run(suite)
+    sys.exit(0 if result.wasSuccessful() else 1)

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="12" y1="10" x2="85" y2="88" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2248b7"/>
+      <stop offset="0.58" stop-color="#17399e"/>
+      <stop offset="1" stop-color="#102977"/>
+    </linearGradient>
+    <linearGradient id="ringFade" x1="12" y1="45" x2="83" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.98"/>
+      <stop offset="1" stop-color="#dbe8ff" stop-opacity="0.95"/>
+    </linearGradient>
+  </defs>
+  <rect x="6" y="6" width="84" height="84" rx="12.5" fill="url(#bgGrad)"/>
+  <path d="M18 57.4C34.1 67.1 59.8 65.8 81.2 48.6" stroke="url(#ringFade)" stroke-width="5" stroke-linecap="round"/>
+  <path d="M29.4 43.2C37.6 31.6 57 26.8 75.6 29.8" stroke="url(#ringFade)" stroke-width="1.45" stroke-linecap="round"/>
+  <path d="M27.4 14.6H47.7L61.6 61.6H51.7L41 32.8L30.2 61.6H20.9L27.4 14.6Z" fill="#FFFFFF"/>
+  <path d="M41 39.2L46.3 52.1H35.8L41 39.2Z" fill="url(#bgGrad)"/>
+  <rect x="61.6" y="14.6" width="11.2" height="47" fill="#FFFFFF"/>
+</svg>

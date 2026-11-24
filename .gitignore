@@ -1,0 +1,9 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+.idea/
+img/
+report/
+data/
+common/sendEmail.py
